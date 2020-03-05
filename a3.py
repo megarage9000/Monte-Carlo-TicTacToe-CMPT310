@@ -24,6 +24,10 @@ class Player:
         print(self.hasWon)
         print(self.moveRow)
         print(self.moveColumn)
+        
+class AIPlayer(Player):
+    def __init__(self, playerToken, playerName):
+        super.__init__()
     
 class HumanPlayer(Player):
     
@@ -35,8 +39,8 @@ class HumanPlayer(Player):
         while(not isValidMove):
             try:
                 print("Enter row and column position of your move:")
-                self.moveRow = int(input("ROW >"))
-                self.moveColumn = int(input("COLUMN >"))
+                self.moveRow = int(input("ROW > "))
+                self.moveColumn = int(input("COLUMN > "))
                 
                 # Checks if given move is one of the available moves
                 move = (self.moveRow, self.moveColumn)
@@ -118,33 +122,39 @@ class TicTacToe:
         self.player2 = player2
         self.board = Board()
         self.win = False
+        self.draw = False
     
     def playGame(self):
-        while(not self.win):
+        while(not self.win and not self.draw):
             self.playTurn(self.player1)
             self.playTurn(self.player2)
             
     def playTurn(self, player):
-        if(self.win == False):
+        if(self.win == False and self.draw == False):
             
-            # Display board and process move
-            self.board.displayBoard()
-            print(player.getPlayerName() + "'s Turn")
-            moveRow, moveColumn = player.getMove(self.board.getEmptyPositions())
-            self.board.setBoardPosition(player.getPlayerToken(), moveRow, moveColumn)
-            
-            # Checks if player has won
-            if(self.board.isConnectedinRow(player.getPlayerToken())):
-                self.win = True
-                player.playerWon()
-                winMessage = player.getPlayerName() + " Has won!"
-                print(winMessage)
+           
+           # Checks if a player can make a move or not 
+            possibleMoves = self.board.getEmptyPositions()
+            if(len(possibleMoves) == 0):
+                self.draw = True
+                print("Draw! no one wins")
                 self.board.displayBoard()
-                player.toString()
+            else:
+                 # Display board and process move
+                self.board.displayBoard()
+                print(player.getPlayerName() + "'s Turn")
+                moveRow, moveColumn = player.getMove(possibleMoves)
+                self.board.setBoardPosition(player.getPlayerToken(), moveRow, moveColumn)
                 
-        
-            
-    
+                # Checks if player has won
+                if(self.board.isConnectedinRow(player.getPlayerToken())):
+                    self.win = True
+                    player.playerWon()
+                    winMessage = player.getPlayerName() + " Has won!"
+                    print(winMessage)
+                    self.board.displayBoard()
+                    player.toString()        
+                
 def main():
     player1 = HumanPlayer("O", "Player 1")
     player2 = HumanPlayer("X", "Player 2")
@@ -153,11 +163,7 @@ def main():
     # player2.toString()
     game.playGame()
     
-
-
     
-    
-
 main()
 
     
