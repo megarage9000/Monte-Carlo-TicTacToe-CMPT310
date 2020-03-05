@@ -4,6 +4,7 @@ class Player:
         self.playerToken = playerToken
         self.moveRow = self.moveColumn = 0
         self.playerName = playerName
+        self.hasWon = False
         
     def getPlayerToken(self):
         return self.playerToken
@@ -13,6 +14,16 @@ class Player:
     
     def getPlayerName(self):
         return self.playerName
+    
+    def playerWon(self):
+        self.hasWon = True
+        
+    def toString(self):
+        print(self.playerName)
+        print(self.playerToken)
+        print(self.hasWon)
+        print(self.moveRow)
+        print(self.moveColumn)
     
 class HumanPlayer(Player):
     
@@ -24,23 +35,26 @@ class HumanPlayer(Player):
         while(not isValidMove):
             try:
                 print("Enter row and column position of your move:")
-                self.moveRow = input("ROW >")
-                self.moveColumn = input("COLUMN >")
+                self.moveRow = int(input("ROW >"))
+                self.moveColumn = int(input("COLUMN >"))
                 
                 # Checks if given move is one of the available moves
                 move = (self.moveRow, self.moveColumn)
+                print(move)
                 for i in range(len(moveList)):
                     if move == moveList[i]:
-                        isValidMove == True
-                        
+                        isValidMove = True
+                    
                 if(isValidMove == False):
                     print("Not a valid move!")
 
-            except TypeError:
-                print("Enter in integer please!")
+            except:
+                print("Enter in an integer please!")
     
         return self.moveRow, self.moveColumn
-                
+    
+    
+
 
 class Board: 
     
@@ -88,7 +102,6 @@ class Board:
                     # Store move as tuple
                     move = (i, k)
                     emptyPositions.append(move)
-                    print("Found empty move!")
         return emptyPositions
     
     def displayBoard(self):
@@ -108,20 +121,27 @@ class TicTacToe:
     
     def playGame(self):
         while(not self.win):
-            self.board.displayBoard()
             self.playTurn(self.player1)
-            self.board.displayBoard()
             self.playTurn(self.player2)
-            self.board.displayBoard()
             
     def playTurn(self, player):
         if(self.win == False):
+            
+            # Display board and process move
+            self.board.displayBoard()
+            print(player.getPlayerName() + "'s Turn")
             moveRow, moveColumn = player.getMove(self.board.getEmptyPositions())
-            self.board(player.getPlayerToken(), moveRow, moveColumn)
+            self.board.setBoardPosition(player.getPlayerToken(), moveRow, moveColumn)
+            
+            # Checks if player has won
             if(self.board.isConnectedinRow(player.getPlayerToken())):
                 self.win = True
+                player.playerWon()
                 winMessage = player.getPlayerName() + " Has won!"
                 print(winMessage)
+                self.board.displayBoard()
+                player.toString()
+                
         
             
     
@@ -129,6 +149,8 @@ def main():
     player1 = HumanPlayer("O", "Player 1")
     player2 = HumanPlayer("X", "Player 2")
     game = TicTacToe(player1, player2)
+    # player1.toString()
+    # player2.toString()
     game.playGame()
     
 
