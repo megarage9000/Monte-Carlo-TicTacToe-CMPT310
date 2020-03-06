@@ -41,9 +41,10 @@ class AIPlayer(Player):
         
     def getMove(self, board):
         
-        currentState = State(board)
+        currentState = State(board, board.getCurrentPlayer(), board.getOpposingPlayer())
         rootNode = Node(currentState)
         for i in range(self.numPlayouts):
+            # --- Selection Phase
             promisingNode = self.selection(rootNode)
             
     def selection(self, rootNode):
@@ -126,9 +127,9 @@ class State():
     def __init__(self, board, currentPlayer, oppositePlayer):
         self.winScore = 0
         self.numVisits = 0
-        self.currentPlayer = currentPlayer
-        self.oppositePlayer = oppositePlayer
         self.board = board
+        self.currentPlayer = board.getCurrentPlayer()
+        self.oppositePlayer = board.getOpposingPlayer()
     
     # TODO - determine whether winScore and numVisits belong in Node class
         
@@ -141,14 +142,31 @@ class State():
     def incrementWins(self):
         self.winScore += 1
         
-    def incnrementVisits(self):
+    def incrementVisits(self):
         self.numVisits += 1
 
 
     # TODO - implement generate children states
     # These states become other player's turn
+    
+    def generateSuccessorStates(self):
+        successorStates = []
+        possibleMoves = self.board.getEmptyPositions()
+        for move in possibleMoves:
+            possibleBoardState = self.board
+            possibleBoardState.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
+            possibleBoardState.switchCurrentPlayer()
+            possibleSuccessorState = State(possibleBoardState, possibleBoardState.getCurrentPlayer(), possibleBoardState.getOpposingPlayer())
+            successorStates.append(possibleSuccessorState)
+        return successorStates
 
+    def randomPlayout(self):
+        for i in range(2):
+            possibleMoves = self.board.getEmptyPositions()
+            move = possibleMoves[random.randint(0, len(possibleMoves))]
             
+        
+        
     
 
 # --- Monte Carlo Tree Search AI Implementation --- END
@@ -189,19 +207,40 @@ class HumanPlayer(Player):
 
 class Board: 
     
-    def __init__(self):
+    def __init__(self, player1, player2):
         self.emptyTile = '_'
         self.board = [[self.emptyTile for x in range(3)] for x in range(3)]
-            
+        self.player1 = player1
+        self.player2 = player2
+        self.currentPlayer = player1
+    
+    # --- Getters and Setters
+    
     def setBoardPosition(self, token, row, column):  
         self.board[row][column] = token
     
     def getBoardPosition(self, row, column):
         return self.board[row][column]
     
+    def getOpposingPlayer(self):
+        if(self.currentPlayer == self.player1):
+            return self.player2
+        else:
+            return self.player1
+    
+    def getCurrentPlayer(self):
+        return self.currentPlayer
+    
     def isTileEmpty(self, row, column):
         return self.board[row][column] == self.emptyTile
     
+    def switchCurrentPlayer(self):
+        if(self.currentPlayer == self.player1):
+            self.currentPlayer = self.player2
+        else:
+            self.currentPlayer = self.player1
+    
+
     # Getting connected rows for given token
     def isConnectedinRow(self, token):        
         for i in range(3):
@@ -234,8 +273,7 @@ class Board:
                     move = (i, k)
                     emptyPositions.append(move)
         return emptyPositions
-    
-    
+
     def displayBoard(self):
         for i in range(len(self.board)):
             row = ""
@@ -243,9 +281,6 @@ class Board:
                 row += self.board[i][k] + " "
             print(row)
             
-    def getBoard(self):
-        return self.board
-
  
 # TODO - refactor TicTacToe to simply handle board game functions
     
@@ -288,11 +323,11 @@ class TicTacToe:
                     self.board.displayBoard()      
                 
 def main():
-    board = Board()
     player1 = HumanPlayer("O", "Player 1")
     player2 = HumanPlayer("X", "Player 2")
-    game = TicTacToe(player1, player2, board)
-    game.playGame()
+    board = Board(player1, player2)
+    # game = TicTacToe(player1, player2, board)
+    # game.playGame()
     
     
 main()
