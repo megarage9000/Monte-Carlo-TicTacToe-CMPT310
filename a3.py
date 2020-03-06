@@ -52,8 +52,10 @@ class AIPlayer(Player):
             if(promisingNode.getNumVisits() > 0):
                 self.expand(promisingNode)
                 promisingNode = promisingNode.selectRandomChild()
-                
-            result = self.simulate(promisingNode, opposingPlayer)
+            
+            # ---Simulation
+            # - return result based    
+            result = self.simulate(promisingNode)
             
             
                         
@@ -71,8 +73,22 @@ class AIPlayer(Player):
             childNode.setParent(node)
             node.addChild(childNode)
     
-    def simulate(self, node, opposingPlayer):
-        return 1
+    # Returns a token based on result
+    def simulate(self, node):
+        testNode = node
+        stateToTest = node.getState()
+        if(stateToTest.ifGivenPlayerLost(self)):
+            node.getParent().setWinScore(-self.winScore)
+            return opposingPlayer.getPlayerToken()
+        
+        while(stateToTest.inProgress()):
+            stateToTest.randomPlayout()
+        
+        if(stateToTest.ifGivenPlayerWon(self)):
+            
+        
+            
+        
         
     def backpropogate(self, node):
         return
@@ -144,6 +160,9 @@ class Node():
     def addToWinScore(self, score):
         self.winScore += score
         
+    def setWinScore(self, score):
+        self.winScore = score
+        
     def incrementVisits(self):
         self.numVisits += 1
     
@@ -159,18 +178,23 @@ class Node():
         return self.children[index]
     
 # Stores data of a state        
+# - Equal for both Opponent and Player
 class State():
     
     def __init__(self, board):
         self.board = board
         self.currentPlayer = board.getCurrentPlayer()
         self.oppositePlayer = board.getOpposingPlayer()
+        self.isPlayerWon = board.isConnectedinRow(self.currentPlayer.getPlayerToken())
+        self.isDraw = board.isDraw()
       
      # generate children   
     def generateSuccessorStates(self):
         successorStates = []
         possibleMoves = self.board.getEmptyPositions()
         for move in possibleMoves:
+            
+            # makes a new board per state
             possibleBoardState = self.board
             possibleBoardState.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
             possibleBoardState.switchCurrentPlayer()
@@ -184,6 +208,24 @@ class State():
         move = possibleMoves[random.randint(0, len(possibleMoves))]
         self.board.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
         self.board.switchCurrentPlayer()            
+        
+    def getCurrentPlayer(self):
+        return self.currentPlayer
+    
+    def getOpposingPlayer(self):
+        return self.getOpposingPlayer
+    
+    # Checks if the given player passed in parameters has lost
+    # - Does this by determining if the current player has won
+    # - when the passed in player is the opposing player
+    def ifGivenPlayerLost(self, player):
+        return player == self.oppositePlayer and self.isPlayerWon
+    
+    def ifGivenPlayerWon(self, player):
+        return player == self.currentPlayer and self.isPlayerWon
+
+    def inProgress(self):
+        return self.isPlayerWon or self.isDraw
         
 
 # --- Monte Carlo Tree Search AI Implementation --- END
@@ -302,14 +344,11 @@ class Board:
     def isPlayerWon(self, player):
         return self.isConnectedinRow(player.getToken())
     
-    def isPlayerLost(self, player):
-        return self.isConnectedinRow(self.getOpposingPlayer(player))
-    
     def isDraw(self):
         return len(self.getEmptyPositions) == 0
     
     def isInProgress(self):
-        return self.isDraw()
+        return not self.isDraw()
 # TODO - refactor TicTacToe to simply handle board game functions
     
 class TicTacToe:
