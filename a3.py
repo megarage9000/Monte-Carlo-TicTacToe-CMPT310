@@ -25,12 +25,26 @@ class Player:
         print(self.moveRow)
         print(self.moveColumn)
         
+# --- Monte Carlo Tree Search AI Implementation ---
+
 class AIPlayer(Player):
     def __init__(self, playerToken, playerName):
         super.__init__()
-    
+        
+
+
+# Node Class to store averageValue per node and it's number of nodes
+class Node():
+    def __init(self, averageValue, numVisit):
+        self.averageValue = averageValue
+        self.numVisit = numVisit
+        self.children = []
+        
+    def addChild(self, childNode):
+        self.children.append(childNode)
+
+# --- Monte Carlo Tree Search AI Implementation ---class HumanPlayer(Player):
 class HumanPlayer(Player):
-    
     def __init__(self, playerToken, playerName):
         super().__init__(playerToken, playerName)
         
