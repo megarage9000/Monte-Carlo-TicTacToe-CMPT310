@@ -41,11 +41,20 @@ class AIPlayer(Player):
         
     def getMove(self, board):
         
-        currentState = State(board, board.getCurrentPlayer(), board.getOpposingPlayer())
+        currentState = State(board)
         rootNode = Node(currentState)
         for i in range(self.numPlayouts):
             # --- Selection Phase
             promisingNode = self.selection(rootNode)
+            if(promisingNode.getNumVisits() > 0):
+                self.expand(promisingNode)
+                
+    
+    def expand(self, node):
+        successorStates = node.getState().generateSuccessorStates()
+        for state in successorStates:
+        
+        
             
     def selection(self, rootNode):
         node = rootNode
@@ -97,6 +106,8 @@ class Node():
     def __init__(self, state):
         self.children = []
         self.state = state
+        self.winScore = 0
+        self.numVisits = 0
         
     def addChild(self, childNode):
         self.children.append(childNode)
@@ -109,6 +120,18 @@ class Node():
     
     def getState(self):
         return self.state
+    
+    def getNumVisits(self):
+        return self.numVisits
+    
+    def getNumWins(self):
+        return self.winScore
+    
+    def incrementWins(self):
+        self.winScore += 1
+        
+    def incrementVisits(self):
+        self.numVisits += 1
     
     def selectRandomChild(self):
         index = random.randint(0, len(self.children))
@@ -124,31 +147,12 @@ class Node():
 # Stores data of a state        
 class State():
     
-    def __init__(self, board, currentPlayer, oppositePlayer):
-        self.winScore = 0
-        self.numVisits = 0
+    def __init__(self, board):
         self.board = board
         self.currentPlayer = board.getCurrentPlayer()
         self.oppositePlayer = board.getOpposingPlayer()
-    
-    # TODO - determine whether winScore and numVisits belong in Node class
-        
-    def getNumVisits(self):
-        return self.numVisits
-    
-    def getNumWins(self):
-        return self.winScore
-    
-    def incrementWins(self):
-        self.winScore += 1
-        
-    def incrementVisits(self):
-        self.numVisits += 1
-
-
-    # TODO - implement generate children states
-    # These states become other player's turn
-    
+      
+     # generate children   
     def generateSuccessorStates(self):
         successorStates = []
         possibleMoves = self.board.getEmptyPositions()
@@ -160,14 +164,13 @@ class State():
             successorStates.append(possibleSuccessorState)
         return successorStates
 
+    # play the currrent player
     def randomPlayout(self):
-        for i in range(2):
-            possibleMoves = self.board.getEmptyPositions()
-            move = possibleMoves[random.randint(0, len(possibleMoves))]
-            
+        possibleMoves = self.board.getEmptyPositions()
+        move = possibleMoves[random.randint(0, len(possibleMoves))]
+        self.board.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
+        self.board.switchCurrentPlayer()            
         
-        
-    
 
 # --- Monte Carlo Tree Search AI Implementation --- END
 
@@ -222,8 +225,8 @@ class Board:
     def getBoardPosition(self, row, column):
         return self.board[row][column]
     
-    def getOpposingPlayer(self):
-        if(self.currentPlayer == self.player1):
+    def getOpposingPlayer(self, player):
+        if(player == self.player1):
             return self.player2
         else:
             return self.player1
@@ -281,7 +284,18 @@ class Board:
                 row += self.board[i][k] + " "
             print(row)
             
- 
+    # Checks states of board        
+    def isPlayerWon(self, player):
+        return self.isConnectedinRow(player.getToken())
+    
+    def isPlayerLost(self, player):
+        return self.isConnectedinRow(self.getOpposingPlayer(player))
+    
+    def isDraw(self):
+        return len(self.getEmptyPositions) == 0
+    
+    def isInProgress(self):
+        return self.isDraw()
 # TODO - refactor TicTacToe to simply handle board game functions
     
 class TicTacToe:
