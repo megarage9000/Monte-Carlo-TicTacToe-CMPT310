@@ -38,30 +38,44 @@ class AIPlayer(Player):
     def __init__(self, playerToken, playerName):
         super.__init__()
         self.numPlayouts = 10
+        self.winScore = 10
         
     def getMove(self, board):
         
         currentState = State(board)
         rootNode = Node(currentState)
+        opposingPlayer = board.getOpposingPlayer(self)
         for i in range(self.numPlayouts):
             # --- Selection Phase
             promisingNode = self.selection(rootNode)
+            # --- Expansion
             if(promisingNode.getNumVisits() > 0):
                 self.expand(promisingNode)
+                promisingNode = promisingNode.selectRandomChild()
                 
-    
-    def expand(self, node):
-        successorStates = node.getState().generateSuccessorStates()
-        for state in successorStates:
-        
-        
+            result = self.simulate(promisingNode, opposingPlayer)
             
+            
+                        
     def selection(self, rootNode):
         node = rootNode
         while(len(node.getChildren) != 0):
                 node = self.findBestChildNode(node)
                 
         return node
+    
+    def expand(self, node):
+        successorStates = node.getState().generateSuccessorStates()
+        for state in successorStates:
+            childNode = Node(state)
+            childNode.setParent(node)
+            node.addChild(childNode)
+    
+    def simulate(self, node, opposingPlayer):
+        return 1
+        
+    def backpropogate(self, node):
+        return
     
     
     # For calculating UCB values 
@@ -127,8 +141,8 @@ class Node():
     def getNumWins(self):
         return self.winScore
     
-    def incrementWins(self):
-        self.winScore += 1
+    def addToWinScore(self, score):
+        self.winScore += score
         
     def incrementVisits(self):
         self.numVisits += 1
@@ -160,7 +174,7 @@ class State():
             possibleBoardState = self.board
             possibleBoardState.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
             possibleBoardState.switchCurrentPlayer()
-            possibleSuccessorState = State(possibleBoardState, possibleBoardState.getCurrentPlayer(), possibleBoardState.getOpposingPlayer())
+            possibleSuccessorState = State(possibleBoardState)
             successorStates.append(possibleSuccessorState)
         return successorStates
 
@@ -335,13 +349,28 @@ class TicTacToe:
                     winMessage = player.getPlayerName() + " Has won!"
                     print(winMessage)
                     self.board.displayBoard()      
-                
+          
+class A():
+    
+    def __init__(self):
+        self.x = 0
+        
+    def test(self, otherObject):
+        if otherObject == self:
+            print("YES")
+        else:
+            print("afafa")
+        
 def main():
-    player1 = HumanPlayer("O", "Player 1")
-    player2 = HumanPlayer("X", "Player 2")
-    board = Board(player1, player2)
+    # player1 = HumanPlayer("O", "Player 1")
+    # player2 = HumanPlayer("X", "Player 2")
+    # board = Board(player1, player2)
     # game = TicTacToe(player1, player2, board)
     # game.playGame()
+    obj1 = A()
+    obj2 = A()
+    obj1.test(obj2)
+    obj1.test(obj1)
     
     
 main()
