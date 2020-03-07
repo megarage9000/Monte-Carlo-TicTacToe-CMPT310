@@ -1,5 +1,5 @@
 
-import random, math
+import random, math, copy
 
 class Player:
     def __init__(self, playerToken, playerName):
@@ -30,13 +30,15 @@ class Player:
 # --- Monte Carlo Tree Search AI Implementation --- BEGIN
 
 # Sources:
-# - https://medium.com/swlh/tic-tac-toe-at-the-monte-carlo-a5e0394c7bc2
+# - https://medium.com/swlh/tic-tac-toe-at-the-monte-carlo-a5e0394c7bc2 
 # - https://www.baeldung.com/java-monte-carlo-tree-search
 
 class AIPlayer(Player):
     
+    numPlayouts = 10
+    winScore = 10
     def __init__(self, playerToken, playerName):
-        super.__init__()
+        super().__init__(playerToken, playerName)
         self.numPlayouts = 10
         self.winScore = 10
         
@@ -49,19 +51,25 @@ class AIPlayer(Player):
             # --- Selection Phase
             promisingNode = self.selection(rootNode)
             # --- Expansion
-            if(promisingNode.getNumVisits() > 0):
+            if(promisingNode.getState().getStatus() == board.inProgressToken):
                 self.expand(promisingNode)
                 promisingNode = promisingNode.selectRandomChild()
             
             # ---Simulation
-            # - return result based    
-            result = self.simulate(promisingNode)
+            # - return result based on token   
+            result = self.simulate(promisingNode, opposingPlayer)
+            self.backpropogate(promisingNode, result)
+            print(i)
             
+        childToReturn = self.findBestChildNode(rootNode)
+        move = childToReturn.getState().getMove()
+        return move[0], move[1]
+        
             
                         
     def selection(self, rootNode):
         node = rootNode
-        while(len(node.getChildren) != 0):
+        while(len(node.getChildren()) != 0):
                 node = self.findBestChildNode(node)
                 
         return node
@@ -74,31 +82,39 @@ class AIPlayer(Player):
             node.addChild(childNode)
     
     # Returns a token based on result
-    def simulate(self, node):
+    def simulate(self, node, opposingPlayer):
         testNode = node
-        stateToTest = node.getState()
-        if(stateToTest.ifGivenPlayerLost(self)):
+        stateToTest = testNode.getState().getStatus()
+        if(stateToTest == opposingPlayer.getPlayerToken()):
             node.getParent().setWinScore(-self.winScore)
-            return opposingPlayer.getPlayerToken()
+            node.getState().board.displayBoard()
+            return stateToTest
         
-        while(stateToTest.inProgress()):
-            stateToTest.randomPlayout()
+        while(stateToTest != testNode.getState().board.inProgressToken):
+            testNode.getState().randomPlayout()
+            stateToTest = testNode.getState().getStatus()
+            
+        return stateToTest
         
-        if(stateToTest.ifGivenPlayerWon(self)):
+            
+
+    def backpropogate(self, node, resultToken):
+        tempNode = node
+        while(tempNode != node.noParent):
+            tempNode.incrementVisits()
+            if(tempNode.getState().getCurrentPlayer() == resultToken):
+                tempNode.addToWinScore(self.winScore)
+            tempNode = tempNode.getParent()
+            
             
         
-            
-        
-        
-    def backpropogate(self, node):
-        return
     
     
     # For calculating UCB values 
     def findBestChildNode(self, node):
         maxUCB = 0
         bestChild = node.getChildAt(0)
-        parentVisits = node.getState().getNumVisits()
+        parentVisits = node.getNumVisits()
         
         for child in node.getChildren():
             calculatedUCB = self.UCBvalue(child, parentVisits)
@@ -109,9 +125,8 @@ class AIPlayer(Player):
                 
         
     def UCBvalue(self, childNode, parentVisits):
-        childState = childNode.getState()
-        numVisits = childState.getNumVisits()
-        numWins = childState.getNumWins()
+        numVisits = childNode.getNumVisits()
+        numWins = childNode.getNumWins()
         
         # If child has not been visited, give preference to that child (since it can't be calculated with UCB)
         if numVisits == 0:
@@ -131,13 +146,14 @@ class Node():
     # - Its children
     # - A state to describe the game
     
-    parentNode = "No Parent"
+    noParent = "No Parent"
     
     def __init__(self, state):
         self.children = []
         self.state = state
         self.winScore = 0
         self.numVisits = 0
+        self.parentNode = self.noParent
         
     def addChild(self, childNode):
         self.children.append(childNode)
@@ -158,7 +174,8 @@ class Node():
         return self.winScore
     
     def addToWinScore(self, score):
-        self.winScore += score
+        if(self.winScore >= 0):
+            self.winScore += score
         
     def setWinScore(self, score):
         self.winScore = score
@@ -167,8 +184,7 @@ class Node():
         self.numVisits += 1
     
     def selectRandomChild(self):
-        index = random.randint(0, len(self.children))
-        child = self.children[index]
+        child = random.choice(self.children)
         return child
     
     def getChildren(self):
@@ -181,31 +197,34 @@ class Node():
 # - Equal for both Opponent and Player
 class State():
     
-    def __init__(self, board):
+    def __init__(self, board, move=(-1,-1)):
         self.board = board
         self.currentPlayer = board.getCurrentPlayer()
-        self.oppositePlayer = board.getOpposingPlayer()
+        self.oppositePlayer = board.getOpposingPlayer(self.currentPlayer)
         self.isPlayerWon = board.isConnectedinRow(self.currentPlayer.getPlayerToken())
-        self.isDraw = board.isDraw()
+        self.isOpponentWon = board.isConnectedinRow(self.oppositePlayer.getPlayerToken())
+        self.isDraw = self.board.isDraw()
+        self.move = move
       
      # generate children   
     def generateSuccessorStates(self):
         successorStates = []
         possibleMoves = self.board.getEmptyPositions()
         for move in possibleMoves:
-            
             # makes a new board per state
-            possibleBoardState = self.board
+            newBoard = self.board.board.copy()
+            possibleBoardState = Board(self.currentPlayer, self.oppositePlayer, newBoard)
             possibleBoardState.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
             possibleBoardState.switchCurrentPlayer()
-            possibleSuccessorState = State(possibleBoardState)
+            possibleSuccessorState = State(possibleBoardState, move)
             successorStates.append(possibleSuccessorState)
+            possibleBoardState.displayBoard()
         return successorStates
 
     # play the currrent player
     def randomPlayout(self):
         possibleMoves = self.board.getEmptyPositions()
-        move = possibleMoves[random.randint(0, len(possibleMoves))]
+        move = random.choice(possibleMoves)
         self.board.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
         self.board.switchCurrentPlayer()            
         
@@ -214,6 +233,19 @@ class State():
     
     def getOpposingPlayer(self):
         return self.getOpposingPlayer
+    
+    def getStatus(self):
+        if(self.isPlayerWon):
+            return self.currentPlayer.getPlayerToken()
+        elif(self.isOpponentWon):
+            return self.oppositePlayer.getPlayerToken()
+        elif(self.isDraw):
+            return self.board.drawToken
+        else:
+            return self.board.inProgressToken
+    
+    def getMove(self):
+        return self.move
     
     # Checks if the given player passed in parameters has lost
     # - Does this by determining if the current player has won
@@ -255,7 +287,7 @@ class HumanPlayer(Player):
 
             except:
                 print("Enter in an integer please!")
-    
+        board.switchCurrentPlayer()
         return self.moveRow, self.moveColumn
     
     
@@ -266,12 +298,14 @@ class HumanPlayer(Player):
 
 class Board: 
     
-    def __init__(self, player1, player2):
+    def __init__(self, player1, player2, board=[['_' for x in range(3)] for x in range(3)]):
         self.emptyTile = '_'
-        self.board = [[self.emptyTile for x in range(3)] for x in range(3)]
+        self.board = board
         self.player1 = player1
         self.player2 = player2
         self.currentPlayer = player1
+        self.drawToken = "Draw"
+        self.inProgressToken = "In Progress"
     
     # --- Getters and Setters
     
@@ -345,10 +379,13 @@ class Board:
         return self.isConnectedinRow(player.getToken())
     
     def isDraw(self):
-        return len(self.getEmptyPositions) == 0
+        return len(self.getEmptyPositions()) == 0
     
     def isInProgress(self):
         return not self.isDraw()
+    
+    def getBoard(self):
+        return self.board.copy()
 # TODO - refactor TicTacToe to simply handle board game functions
     
 class TicTacToe:
@@ -401,16 +438,12 @@ class A():
             print("afafa")
         
 def main():
-    # player1 = HumanPlayer("O", "Player 1")
-    # player2 = HumanPlayer("X", "Player 2")
-    # board = Board(player1, player2)
-    # game = TicTacToe(player1, player2, board)
-    # game.playGame()
-    obj1 = A()
-    obj2 = A()
-    obj1.test(obj2)
-    obj1.test(obj1)
-    
+    player1 = HumanPlayer("O", "Player 1")
+    player2 = AIPlayer("X", "Player 2")
+    board = Board(player1, player2)
+    game = TicTacToe(player1, player2, board)
+    game.playGame()
+
     
 main()
 
