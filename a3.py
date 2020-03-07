@@ -1,5 +1,5 @@
 
-import random, math, copy
+import random, math, copy, time
 
 class Player:
     def __init__(self, playerToken, playerName):
@@ -35,11 +35,9 @@ class Player:
 
 class AIPlayer(Player):
     
-    numPlayouts = 10
-    winScore = 10
     def __init__(self, playerToken, playerName):
         super().__init__(playerToken, playerName)
-        self.numPlayouts = 10
+        self.numPlayouts = 25
         self.winScore = 10
         
     def getMove(self, board):
@@ -59,10 +57,10 @@ class AIPlayer(Player):
             # - return result based on token   
             result = self.simulate(promisingNode, opposingPlayer)
             self.backpropogate(promisingNode, result)
-            print(i)
             
         childToReturn = self.findBestChildNode(rootNode)
         move = childToReturn.getState().getMove()
+        board.switchCurrentPlayer()
         return move[0], move[1]
         
             
@@ -83,17 +81,16 @@ class AIPlayer(Player):
     
     # Returns a token based on result
     def simulate(self, node, opposingPlayer):
-        testNode = node
+        testNode = node.getNodeCopy()
         stateToTest = testNode.getState().getStatus()
-        if(stateToTest == opposingPlayer.getPlayerToken()):
-            node.getParent().setWinScore(-self.winScore)
-            node.getState().board.displayBoard()
-            return stateToTest
+   
         
-        while(stateToTest != testNode.getState().board.inProgressToken):
+        while(stateToTest == testNode.getState().board.inProgressToken):
             testNode.getState().randomPlayout()
             stateToTest = testNode.getState().getStatus()
             
+        if(stateToTest == opposingPlayer.getPlayerToken()):
+            node.getParent().setWinScore(-self.winScore)
         return stateToTest
         
             
@@ -102,14 +99,11 @@ class AIPlayer(Player):
         tempNode = node
         while(tempNode != node.noParent):
             tempNode.incrementVisits()
-            if(tempNode.getState().getCurrentPlayer() == resultToken):
+            if(tempNode.getState().getCurrentPlayer().getPlayerToken() == resultToken):
                 tempNode.addToWinScore(self.winScore)
             tempNode = tempNode.getParent()
             
             
-        
-    
-    
     # For calculating UCB values 
     def findBestChildNode(self, node):
         maxUCB = 0
@@ -134,7 +128,9 @@ class AIPlayer(Player):
         
         # calculate based on UCB formula
         else:
-            return float(numWins/numVisits) + math.sqrt(2) * math.log(float(parentVisits/numVisits))
+            temp1 = float(numWins/numVisits)
+            temp2 = math.sqrt(2) * math.sqrt(float(math.log(parentVisits))/numVisits)
+            return temp1 +  temp2
                 
     
 
@@ -154,6 +150,15 @@ class Node():
         self.winScore = 0
         self.numVisits = 0
         self.parentNode = self.noParent
+        
+    def getNodeCopy(self):
+        childrenCopy = copy.deepcopy(self.children)
+        stateCopy = copy.deepcopy(self.state)
+        parentNodeCopy = copy.deepcopy(self.parentNode)
+        nodeCopy = Node(stateCopy)
+        nodeCopy.setParent(parentNodeCopy)
+        nodeCopy.setChildren(childrenCopy)
+        return nodeCopy
         
     def addChild(self, childNode):
         self.children.append(childNode)
@@ -190,6 +195,9 @@ class Node():
     def getChildren(self):
         return self.children
     
+    def setChildren(self, children):
+        self.children = children
+    
     def getChildAt(self, index):
         return self.children[index]
     
@@ -201,33 +209,31 @@ class State():
         self.board = board
         self.currentPlayer = board.getCurrentPlayer()
         self.oppositePlayer = board.getOpposingPlayer(self.currentPlayer)
-        self.isPlayerWon = board.isConnectedinRow(self.currentPlayer.getPlayerToken())
-        self.isOpponentWon = board.isConnectedinRow(self.oppositePlayer.getPlayerToken())
-        self.isDraw = self.board.isDraw()
         self.move = move
-      
+    
      # generate children   
     def generateSuccessorStates(self):
         successorStates = []
         possibleMoves = self.board.getEmptyPositions()
+        
         for move in possibleMoves:
             # makes a new board per state
-            newBoard = self.board.board.copy()
-            possibleBoardState = Board(self.currentPlayer, self.oppositePlayer, newBoard)
-            possibleBoardState.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
-            possibleBoardState.switchCurrentPlayer()
-            possibleSuccessorState = State(possibleBoardState, move)
+            originalBoard = self.board.getBoardCopy()
+            originalBoard.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
+            originalBoard.switchCurrentPlayer()
+            possibleSuccessorState = State(originalBoard, move)
             successorStates.append(possibleSuccessorState)
-            possibleBoardState.displayBoard()
+            
         return successorStates
+
 
     # play the currrent player
     def randomPlayout(self):
         possibleMoves = self.board.getEmptyPositions()
         move = random.choice(possibleMoves)
-        self.board.setBoardPosition(self.currentPlayer.getPlayerToken(), move[0], move[1])
-        self.board.switchCurrentPlayer()            
-        
+        self.board.setBoardPosition(self.board.getCurrentPlayer().getPlayerToken(), move[0], move[1])
+        self.board.switchCurrentPlayer()    
+                  
     def getCurrentPlayer(self):
         return self.currentPlayer
     
@@ -235,11 +241,11 @@ class State():
         return self.getOpposingPlayer
     
     def getStatus(self):
-        if(self.isPlayerWon):
+        if(self.board.isConnectedinRow(self.currentPlayer.getPlayerToken())):
             return self.currentPlayer.getPlayerToken()
-        elif(self.isOpponentWon):
+        elif(self.board.isConnectedinRow(self.oppositePlayer.getPlayerToken())):
             return self.oppositePlayer.getPlayerToken()
-        elif(self.isDraw):
+        elif(self.board.isDraw()):
             return self.board.drawToken
         else:
             return self.board.inProgressToken
@@ -247,19 +253,6 @@ class State():
     def getMove(self):
         return self.move
     
-    # Checks if the given player passed in parameters has lost
-    # - Does this by determining if the current player has won
-    # - when the passed in player is the opposing player
-    def ifGivenPlayerLost(self, player):
-        return player == self.oppositePlayer and self.isPlayerWon
-    
-    def ifGivenPlayerWon(self, player):
-        return player == self.currentPlayer and self.isPlayerWon
-
-    def inProgress(self):
-        return self.isPlayerWon or self.isDraw
-        
-
 # --- Monte Carlo Tree Search AI Implementation --- END
 
 class HumanPlayer(Player):
@@ -289,8 +282,16 @@ class HumanPlayer(Player):
                 print("Enter in an integer please!")
         board.switchCurrentPlayer()
         return self.moveRow, self.moveColumn
-    
-    
+
+class RandomAI(Player):
+    def __init__(self, playerToken, playerName):
+        super().__init__(playerToken, playerName)
+
+    def getMove(self, board):
+        possibleMoves = board.getEmptyPositions()
+        randomMove = random.choice(possibleMoves)
+        board.switchCurrentPlayer()
+        return randomMove[0], randomMove[1]    
 # TODO, refactor board so it:
 # - has information on both players
 # - determines which one has won
@@ -330,7 +331,7 @@ class Board:
     def switchCurrentPlayer(self):
         if(self.currentPlayer == self.player1):
             self.currentPlayer = self.player2
-        else:
+        elif(self.currentPlayer == self.player2):
             self.currentPlayer = self.player1
     
 
@@ -384,22 +385,29 @@ class Board:
     def isInProgress(self):
         return not self.isDraw()
     
-    def getBoard(self):
-        return self.board.copy()
+    def getBoardCopy(self):
+        boardListCopy = copy.deepcopy(self.board)
+        player1 = self.player1
+        player2 = self.player2
+        boardCopy = Board(player1, player2, boardListCopy)
+        return boardCopy
 # TODO - refactor TicTacToe to simply handle board game functions
     
 class TicTacToe:
     
-    def __init__(self, player1, player2, board):
+    def __init__(self, player1, player2, board, time=0):
         self.player1 = player1
         self.player2 = player2
         self.board = board
         self.win = False
         self.draw = False
+        self.time = time
     
     def playGame(self):
         while(not self.win and not self.draw):
+            time.sleep(self.time)
             self.playTurn(self.player1)
+            time.sleep(self.time)
             self.playTurn(self.player2)
             
     def playTurn(self, player):
@@ -414,7 +422,7 @@ class TicTacToe:
             else:
                  # Display board and process move
                 self.board.displayBoard()
-                print(player.getPlayerName() + "'s Turn")
+                print(self.board.getCurrentPlayer().getPlayerName() + "'s Turn")
                 moveRow, moveColumn = player.getMove(self.board)
                 self.board.setBoardPosition(player.getPlayerToken(), moveRow, moveColumn)
                 
@@ -426,24 +434,14 @@ class TicTacToe:
                     print(winMessage)
                     self.board.displayBoard()      
           
-class A():
-    
-    def __init__(self):
-        self.x = 0
-        
-    def test(self, otherObject):
-        if otherObject == self:
-            print("YES")
-        else:
-            print("afafa")
-        
-def main():
-    player1 = HumanPlayer("O", "Player 1")
-    player2 = AIPlayer("X", "Player 2")
-    board = Board(player1, player2)
-    game = TicTacToe(player1, player2, board)
-    game.playGame()
 
+def main():
+    playerCarlo = AIPlayer("X", "MonteCarloPlayer")
+    playerRandom = RandomAI("O", "RandomUI")
+    board = Board(playerRandom, playerCarlo)
+    game = TicTacToe(playerRandom, playerCarlo, board, 1)
+    game.playGame()
+    
     
 main()
 
